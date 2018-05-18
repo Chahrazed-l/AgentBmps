@@ -9,4 +9,4 @@ The simulator takes as input:
   - The url of the BPMS
   - A config.txt file containing information about the Tenants names, IDs, and number of users per tenant
   - The execution Time: denotes the interval of time when the user agents are active before being blocked by the Master Agent.
-  - The activation Time: denotes the period of time after which the Master Agent will deblock the user agents to execute the avialable tasks.  
+  - The activation Time: denotes the period of time after which the Master Agent will deblock the user agents to execute the rest of the avialable tasks.  
