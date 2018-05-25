@@ -26,11 +26,11 @@ public class MainStart {
 		String bpms_name = args[0].toString();
 		String uri = args[1].toString();
 		String filename = args[2].toString();
-		long execTime = Long.parseLong(args[3].toString());
-		long actiTime = Long.parseLong(args[4].toString());
+		long NbprocessActif = Long.parseLong(args[3].toString());
+		//long actiTime = Long.parseLong(args[4].toString());
 		rt = emptyPlatform(containerList);
 		String className = classNameToinstantiate(bpms_name);
-		createSecondContainers(rt, uri, bpms_name, filename, className, execTime, actiTime);
+		createSecondContainers(rt, uri, bpms_name, filename, className, NbprocessActif);
 
 	}
 
@@ -60,24 +60,10 @@ public class MainStart {
 
 	}
 
-		// Read from file information about the tenants and the agents number
+		
 	private static void createSecondContainers(Runtime runtime, String uRi, String bmps_name, String filename,
-			String className, long exectime, long actitime) {
-		// Create the master
-		System.out.println("Launchig the Mater Agent with arguments : Deactivation Time = "+exectime+" && Activation Time = "+actitime);
-		Profile profile1 = new ProfileImpl();
-		profile1.setParameter(Profile.CONTAINER_NAME, "Mater");
-		profile1.setParameter(Profile.MAIN_HOST, "localhost");
-		// create a non-main agent container
-		ContainerController container1 = runtime.createAgentContainer(profile1);
-		try {
-			AgentController ag1 = container1.createNewAgent("Master", "com.master.AgentMaster",
-					new Object[] {exectime, actitime});
-			ag1.start();
-		} catch (StaleProxyException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			String className, long nbprocessActif) {
+		// Read from file information about the tenants and the agents number
 		FileReader fileReader = null;
 		try {
 			fileReader = new FileReader(filename);
@@ -100,18 +86,10 @@ public class MainStart {
 			// create a non-main agent container
 			System.out.println("Launchig the user Agents of Tenant "+tenantName);
 			ContainerController container = runtime.createAgentContainer(profile);
-			try {
-				AgentController ag1 = container.createNewAgent("synchro" + tenantName, "com.agents.Synchronizer",
-						new Object[] {userNumber});
-				ag1.start();
-			} catch (StaleProxyException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 			for (int i = 1; i <= userNumber; i++) {
 				try {
 					AgentController ag = container.createNewAgent("user" + i+tenantName, "com.agents.UserAgent",
-							new Object[] { uRi, "user" + i, "user" + i, tenantId, "com.bpms." + className });// arguments
+							new Object[] { uRi, "user" + i, "user" + i, tenantId, "com.bpms." + className, nbprocessActif});// arguments
 					ag.start();
 
 				} catch (StaleProxyException e) {

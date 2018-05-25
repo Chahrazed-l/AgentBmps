@@ -10,7 +10,7 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 public abstract class Bpms {
 	public abstract String doLogin(String username, String password, String tenantId);
 	// Retrieve the tasks 
-	public abstract ArrayList<Long> retreiveTask(int numberPag, int numberproc, String token, long userId);
+	public abstract Struct retreiveTask(int numberPag, int numberproc, String token, long userId);
 	// Auto assign the tasks
 	public abstract void autoAssign(long taskId, long userId, String token);
 	//Execute the Task
@@ -18,7 +18,7 @@ public abstract class Bpms {
 	//logout the platform
 	public abstract void dologout(String token);
 	//Create a closable Http Client
-	
+	public abstract String getTaskInfo(long activityId,String token);
 	public abstract PoolingHttpClientConnectionManager getConnectionManager() ;
 	// Execute a Post Request
 	public abstract HttpResponse executePostRequest(String apiUri, String payloadAsString, String tokenCSRF);

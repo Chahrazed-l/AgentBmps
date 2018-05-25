@@ -13,6 +13,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 
+import com.bpms.Struct;
+
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -38,11 +40,12 @@ public class UserAgent extends Agent {
 	private int nbproc = 10;
 	Object conn1;
 	private long userId;
-	private AID synchroagentID;
 	private int k;
 	private int p;
 	private ArrayList<Long> listofPendingTasks;
+	private long nbproca;
 	private Method getNameMethod1;
+	private long nbprocessActif;
 
 	// Initilize the agent
 	public void setup() {
@@ -52,6 +55,7 @@ public class UserAgent extends Agent {
 		password = args[2].toString();
 		tenantId = args[3].toString();
 		className = args[4].toString();
+		nbprocessActif = Long.parseLong(args[5].toString());
 		try {
 			con = Class.forName(className);
 			Object conn = con.newInstance();
@@ -121,24 +125,12 @@ public class UserAgent extends Agent {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-
-				try {
-					containerName = myAgent.getContainerController().getContainerName();
-					synchroagentID = synchroId(containerName);
-				} catch (ControllerException e2) {
-					// TODO Auto-generated catch block
-					e2.printStackTrace();
-				}
-				// Consulter la liste des taches a executer
-				listofPendingTasks = new ArrayList<Long>();
-
+				Struct struct = new Struct(listofPendingTasks, nbproca);
 				try {
 					Class<?>[] paramType = { int.class, int.class, String.class, long.class };
 					getNameMethod1 = conn1.getClass().getMethod("retreiveTask", paramType);
-					listofPendingTasks = (ArrayList<Long>) getNameMethod1.invoke(conn1, nbpage, nbproc, token, userId);
-					// System.out.println("I m the agent " + myAgent.getLocalName()
-					// + " La taille de la liste des pending tasks is " +
-					// listofPendingTasks.size());
+					struct = (Struct) getNameMethod1.invoke(conn1, nbpage, nbproc, token, userId);
+				
 				} catch (NoSuchMethodException e3) {
 					// TODO Auto-generated catch block
 					e3.printStackTrace();
@@ -155,54 +147,59 @@ public class UserAgent extends Agent {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				if (listofPendingTasks.size() > 0) {
-					k = listofPendingTasks.size();
+				k = struct.getPendingList().size();
+				if (k > 0) {
 					Random r = new Random();
-
 					p = r.nextInt(k);
-					ACLMessage msg = new ACLMessage(ACLMessage.REQUEST);
-					msg.addReceiver(synchroagentID);
-					try {
-						msg.setContentObject(listofPendingTasks.get(p));
-					} catch (IOException e2) {
-						// TODO Auto-generated catch block
-						e2.printStackTrace();
-					}
-					send(msg);
-					mt = MessageTemplate.MatchAll();
-					ACLMessage mg = myAgent.receive(mt);
-					if (mg != null) {
-						if (mg.getPerformative() == ACLMessage.INFORM) {
+					
+					String assignid = null;
+					if (struct.getProccactif() > nbprocessActif + 1) {
+						try {
+							Class<?>[] paramTypess1 = { long.class, String.class };
+							getNameMethod1 = conn1.getClass().getMethod("getTaskInfo", paramTypess1);
+							assignid = (String) getNameMethod1.invoke(conn1, struct.getPendingList().get(p), token);
+						} catch (NoSuchMethodException e2) {
+							// TODO Auto-generated catch block
+							e2.printStackTrace();
+						} catch (SecurityException e2) {
+							// TODO Auto-generated catch block
+							e2.printStackTrace();
+						} catch (IllegalAccessException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (IllegalArgumentException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (InvocationTargetException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						if (assignid.equals("")) {
 							try {
-								try {
-									Class<?>[] paramTypess = { long.class, long.class, String.class };
-									getNameMethod1 = conn1.getClass().getMethod("autoAssign", paramTypess);
-									getNameMethod1.invoke(conn1, listofPendingTasks.get(p), userId, token);
-								} catch (NoSuchMethodException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								} catch (SecurityException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								} catch (IllegalAccessException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								} catch (IllegalArgumentException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								} catch (InvocationTargetException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}
-								Thread.sleep(1000);
-							} catch (InterruptedException e) {
+								Class<?>[] paramTypess = { long.class, long.class, String.class };
+								getNameMethod1 = conn1.getClass().getMethod("autoAssign", paramTypess);
+								getNameMethod1.invoke(conn1, struct.getPendingList().get(p), userId, token);
+								
+							} catch (IllegalAccessException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							} catch (IllegalArgumentException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							} catch (InvocationTargetException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							} catch (NoSuchMethodException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (SecurityException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
 							try {
 								Class<?>[] paramTyp = { long.class, long.class, String.class };
 								getNameMethod1 = conn1.getClass().getMethod("executeTask", paramTyp);
-								getNameMethod1.invoke(conn1, listofPendingTasks.get(p), userId, token);
+								getNameMethod1.invoke(conn1, struct.getPendingList().get(p), userId, token);
 							} catch (NoSuchMethodException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
@@ -219,42 +216,85 @@ public class UserAgent extends Agent {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-							step = 2;
-						} else if (mg.getPerformative() == ACLMessage.REFUSE) {
-							step = 2;
-						} else {
-							ACLMessage msg1 = new ACLMessage(ACLMessage.DISCONFIRM);
-							msg1.addReceiver(synchroagentID);
-							send(msg1);
-							step = 2;
+
+						}
+					} else if (struct.getProccactif() <= nbprocessActif+1 && struct.getProccactif() > nbprocessActif) {
+						
+						try {
+							Class<?>[] paramTypess1 = { long.class, String.class };
+							getNameMethod1 = conn1.getClass().getMethod("getTaskInfo", paramTypess1);
+							assignid = (String) getNameMethod1.invoke(conn1, struct.getPendingList().get(p), token);
+							
+						} catch (NoSuchMethodException e2) {
+							// TODO Auto-generated catch block
+							e2.printStackTrace();
+						} catch (SecurityException e2) {
+							// TODO Auto-generated catch block
+							e2.printStackTrace();
+						} catch (IllegalAccessException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (IllegalArgumentException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (InvocationTargetException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						if (assignid.equals("")) {
+							try {
+								Class<?>[] paramTypess = { long.class, long.class, String.class };
+								getNameMethod1 = conn1.getClass().getMethod("autoAssign", paramTypess);
+								getNameMethod1.invoke(conn1, struct.getPendingList().get(p), userId, token);
+								
+							} catch (IllegalAccessException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							} catch (IllegalArgumentException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							} catch (InvocationTargetException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							} catch (NoSuchMethodException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (SecurityException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							try {
+								Thread.sleep(1000);
+							} catch (InterruptedException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							}
+							try {
+								Class<?>[] paramTyp = { long.class, long.class, String.class };
+								getNameMethod1 = conn1.getClass().getMethod("executeTask", paramTyp);
+								getNameMethod1.invoke(conn1, struct.getPendingList().get(p), userId, token);
+							} catch (NoSuchMethodException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (SecurityException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (IllegalAccessException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (IllegalArgumentException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (InvocationTargetException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+
 						}
 					}
-					block();
-				} else {
-					step = 2;
-				}
-				break;
-			case 2:
-				mt = MessageTemplate.MatchAll();
-				ACLMessage mg1 = myAgent.receive(mt);
-				if (mg1 != null) {
-					if (mg1.getPerformative() == ACLMessage.CFP) {
-						step = 3;
-					}
-				} else {
 					step = 1;
+					break;
 				}
-				break;
-			case 3:
-				mt = MessageTemplate.MatchAll();
-				ACLMessage mg2 = myAgent.receive(mt);
-				if (mg2 != null) {
-					if (mg2.getPerformative() == ACLMessage.CANCEL) {
-						step = 1;
-					}
-				}
-				block();
-				break;
 			}
 		}
 

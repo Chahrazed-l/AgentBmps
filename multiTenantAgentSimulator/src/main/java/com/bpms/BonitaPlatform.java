@@ -3,7 +3,9 @@ package com.bpms;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.ParseException;
@@ -34,7 +36,7 @@ public class BonitaPlatform extends Bpms {
 	protected CloseableHttpClient httpClient;
 	protected HttpContext httpContext;
 	protected String bonitaURI;
-	protected String urlTaskRetrive = "/API/bpm/humanTask?p=0&c=100&f=state%3dready&f=user_id%3d";
+	protected String urlTaskRetrive = "/API/bpm/humanTask?p=0&c=10&f=state%3dready&f=user_id%3d";
 	protected String urlTask = "/API/bpm/humanTask/";
 	protected String urlstateTask = "/API/bpm/activity/";
 
@@ -80,27 +82,27 @@ public class BonitaPlatform extends Bpms {
 	}
 
 	@Override
-	public ArrayList<Long> retreiveTask(int numberPag, int numberproc, String token, long userId) {
+	public Struct retreiveTask(int numberPag, int numberproc, String token, long userId) {
 		// TODO Auto-generated method stub
 		ArrayList<Long> listOfPendingTasks = new ArrayList<Long>();
-		HttpResponse response = executeGetRequest(urlTaskRetrive+userId, token);
-		//System.out.println("Status de la reponse" + response.getStatusLine().getStatusCode());
+		long nbprocactif= 0;
+		HttpResponse response = executeGetRequest(urlTaskRetrive + userId, token);
 		ensureStatusOk(response);
 		String Data;
-	       try {
+		try {
 			Data = EntityUtils.toString(response.getEntity());
-			//System.out.println("The value of the data!!"+Data);
+			// System.out.println("The value of the data!!"+Data);
 			JSONArray array = (JSONArray) new JSONParser().parse(Data);
-		   // System.out.println("The size of the array !!"+array.size() );
+			// System.out.println("The size of the array !!"+array.size() );
 			for (int i = 0; i < array.size(); i++) {
 				JSONObject json = null;
 				json = (JSONObject) array.get(i);
 				String id = (String) json.get("id");
 				long id1 = Long.valueOf(Long.parseLong(id, 10));
-				//System.out.println("The id of the assigned Task is " + id1);
+				// System.out.println("The id of the assigned Task is " + id1);
 				listOfPendingTasks.add(id1);
 				// System.out.println("The id of the assigned Task is " + id);
-				 }
+			}
 		} catch (ParseException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -111,24 +113,44 @@ public class BonitaPlatform extends Bpms {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-			
-		return listOfPendingTasks;
+		nbprocactif=getInstanceLength(response);
+				
+		Struct struct = new Struct(listOfPendingTasks, nbprocactif);
+		return struct;
+	}
+
+	public static long getInstanceLength(HttpResponse response) {
+		long length = -1;
+		if (response != null) {
+			Header[] range = response.getHeaders("Content-Range");
+			if (range.length > 0) {
+				// Get the header value
+				String value = range[0].getValue();
+
+				// Split the value
+				String[] section = value.split("/");
+
+				try {
+					// Parse for the instance length
+					length = Long.parseLong(section[1]);
+				} catch (NumberFormatException e) {
+					// The server returned an unknown "*" or invalid instance-length
+				}
 			}
+		}
+		return length;
+	}
 
 	@Override
 	public void autoAssign(long taskId, long userId, String token) {
 		// TODO Auto-generated method stub
 		String payloadAsString = "{\"assigned_id\":\"" + userId + "\"}";
 		HttpResponse response = executePutRequest(urlTask + taskId, payloadAsString, token);
-		// System.out.println("The activity with ID " + taskId + " is taken by " +
-		// userId);
 		ensureStatusOk(response);
 	}
 
 	@Override
 	public void executeTask(long activityId, long userId, String token) {
-		// System.out.println("The activity ID is " + activityId);
-		//autoAssign(activityId, userId, token);
 		String payloadAsString = "{\"state\":\"completed\"}";
 		HttpResponse response = executePutRequest(urlstateTask + activityId, payloadAsString, token);
 		ensureStatusOk(response);
@@ -289,4 +311,34 @@ public class BonitaPlatform extends Bpms {
 		}
 	}
 
+	@Override
+	public String getTaskInfo(long activityId, String token) {
+		// TODO Auto-generated method stub
+		HttpResponse response = executeGetRequest("/API/bpm/userTask/" + activityId, token);
+		 String actorJson=null;
+		 String assignid ="";
+			try {
+				actorJson = EntityUtils.toString(response.getEntity());
+				JSONParser parser = new JSONParser();
+				Object jsonObj = parser.parse(actorJson);
+				JSONObject jsonObject = (JSONObject) jsonObj;
+				assignid= (String) jsonObject.get("assigned_id");
+				assignid=assignid.trim();
+				//id1= Long.parseLong(assignid);
+			} catch (ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (org.json.simple.parser.ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			return assignid;
+
+	
+
+}
 }
